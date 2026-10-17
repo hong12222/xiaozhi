@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小智 · 手机里的私人 AI 助手</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#121a30; --panel2:#0f1527;
+    --ink:#e9eefb; --sub:#93a1c4; --line:rgba(255,255,255,.08);
+    --brand:#5b8cff; --brand2:#7ee0d0; --warm:#ffb86b; --pink:#ff7ab8;
+    --radius:18px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(91,140,255,.28), transparent 60%),
+      radial-gradient(900px 500px at -10% 20%, rgba(126,224,208,.14), transparent 55%),
+      var(--bg);
+    color:var(--ink); line-height:1.7; min-height:100vh; overflow-x:hidden;
+  }
+  a{color:var(--brand2);text-decoration:none}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 20px}
+
+  /* 滚动进度条 */
+  #progress{position:fixed;top:0;left:0;height:3px;width:0;z-index:99;
+    background:linear-gradient(90deg,var(--brand),var(--brand2),var(--warm));
+    box-shadow:0 0 12px rgba(91,140,255,.8);transition:width .08s linear}
+
+  /* 背景漂浮光斑（随滚动视差移动） */
+  .orb{position:fixed;border-radius:50%;filter:blur(60px);opacity:.35;pointer-events:none;z-index:0;will-change:transform}
+  .orb.a{width:340px;height:340px;left:-120px;top:8%;background:rgba(91,140,255,.5)}
+  .orb.b{width:280px;height:280px;right:-100px;top:42%;background:rgba(126,224,208,.32)}
+  .orb.c{width:220px;height:220px;left:30%;bottom:-60px;background:rgba(255,184,107,.22)}
+
+  header{display:flex;align-items:center;justify-content:space-between;padding:22px 0;position:sticky;top:0;z-index:10;backdrop-filter:blur(14px);background:rgba(11,16,32,.55);border-bottom:1px solid var(--line)}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:.5px}
+  .logo .dot{width:30px;height:30px;border-radius:10px;background:linear-gradient(135deg,var(--brand),var(--brand2));display:grid;place-items:center;font-size:16px;box-shadow:0 6px 18px rgba(91,140,255,.45)}
+  nav a{color:var(--sub);font-size:14px;margin-left:18px;transition:color .2s}
+  nav a:hover{color:var(--ink)}
+  nav a.icon{display:inline-flex;align-items:center;gap:4px}
+
+  main{position:relative;z-index:1}
+
+  .hero{display:grid;grid-template-columns:1.15fr .85fr;gap:36px;align-items:center;padding:64px 0 40px}
+  .badge{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--brand2);border:1px solid rgba(126,224,208,.35);background:rgba(126,224,208,.08);padding:6px 14px;border-radius:99px;margin-bottom:18px}
+  .badge::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--brand2);box-shadow:0 0 10px var(--brand2);animation:pulse 2s infinite}
+  @keyframes pulse{50%{opacity:.35}}
+  h1{font-size:clamp(34px,5.6vw,56px);line-height:1.15;font-weight:900;letter-spacing:-1px}
+  h1 .g{background:linear-gradient(100deg,var(--brand),var(--brand2) 55%,var(--warm));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{color:var(--sub);font-size:17px;margin:18px 0 26px;max-width:520px}
+  .cta{display:flex;gap:12px;flex-wrap:wrap}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:14px;font-weight:700;font-size:15px;border:1px solid transparent;cursor:pointer;transition:transform .15s,box-shadow .2s;text-decoration:none}
+  .btn:hover{transform:translateY(-2px)}
+  .btn.primary{background:linear-gradient(135deg,var(--brand),#3f6fe0);color:#fff;box-shadow:0 10px 26px rgba(91,140,255,.4)}
+  .btn.ghost{background:rgba(255,255,255,.04);color:var(--ink);border-color:var(--line)}
+  .btn.git{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.16);color:var(--ink)}
+  .btn.git:hover{background:rgba(255,255,255,.12)}
+  .btn .arr{font-size:12px;opacity:.7}
+  .meta{margin-top:26px;display:flex;gap:22px;flex-wrap:wrap;font-size:13px;color:var(--sub)}
+  .meta b{color:var(--ink);font-weight:700}
+
+  /* 手机样机 */
+  .phone-col{will-change:transform}
+  .phone{
+    width:280px;height:540px;margin:0 auto;border-radius:40px;position:relative;
+    background:linear-gradient(180deg,#1a2340,#0c1224);
+    border:1px solid rgba(255,255,255,.14);
+    box-shadow:0 40px 80px rgba(0,0,0,.55), inset 0 0 0 6px rgba(255,255,255,.04);
+    overflow:hidden;
+  }
+  .notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:96px;height:22px;background:#05070f;border-radius:14px;z-index:3}
+  .screen{position:absolute;inset:8px;border-radius:34px;background:#0a0f1e;overflow:hidden;display:flex;flex-direction:column}
+  .chat{padding:40px 14px 8px;display:flex;flex-direction:column;gap:9px;flex:1;overflow-y:auto;scrollbar-width:none}
+  .chat::-webkit-scrollbar{display:none}
+  .msg{max-width:86%;padding:8px 12px;border-radius:15px;font-size:12.5px;line-height:1.5;animation:pop .35s ease both}
+  .msg.ai{background:rgba(255,255,255,.06);border:1px solid var(--line);border-top-left-radius:6px;align-self:flex-start}
+  .msg.me{background:linear-gradient(135deg,var(--brand),#3f6fe0);align-self:flex-end;border-top-right-radius:6px;color:#fff}
+  .msg .q{margin-top:5px;display:flex;gap:6px;flex-wrap:wrap}
+  .msg .q .chip{cursor:pointer}
+  .msg .sub{color:#93a1c4;font-size:11px;display:block;margin-top:2px}
+  .chip{font-size:10.5px;padding:3px 9px;border-radius:99px;border:1px solid rgba(126,224,208,.4);color:var(--brand2);background:rgba(126,224,208,.08);cursor:pointer;transition:background .15s}
+  .chip:hover{background:rgba(126,224,208,.18)}
+  @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .typing{display:inline-flex;gap:3px;padding:9px 12px}
+  .typing i{width:5px;height:5px;border-radius:50%;background:var(--sub);animation:bounce .9s infinite}
+  .typing i:nth-child(2){animation-delay:.15s}
+  .typing i:nth-child(3){animation-delay:.3s}
+  @keyframes bounce{50%{transform:translateY(-4px);opacity:.4}}
+
+  .dock{margin:0 10px 8px;display:flex;gap:8px;justify-content:space-between;align-items:center;padding:8px 14px;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid var(--line);font-size:11px;color:var(--sub)}
+  .ball{width:34px;height:34px;border-radius:50%;background:conic-gradient(from 210deg,var(--brand),var(--brand2),var(--warm),var(--brand));display:grid;place-items:center;font-size:14px;box-shadow:0 0 18px rgba(91,140,255,.65);animation:float 3.2s ease-in-out infinite;cursor:pointer}
+  @keyframes float{50%{transform:translateY(-6px)}}
+
+  .inputbar{display:flex;gap:6px;padding:0 10px 12px}
+  .inputbar input{flex:1;min-width:0;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:12px;color:var(--ink);font-size:12px;padding:9px 12px;outline:none}
+  .inputbar input:focus{border-color:rgba(91,140,255,.55)}
+  .inputbar button{width:36px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--brand),#3f6fe0);color:#fff;font-size:14px;cursor:pointer}
+  .inputbar button:active{transform:scale(.94)}
+
+  .hintbar{display:flex;gap:6px;padding:0 10px 10px;flex-wrap:wrap}
+  .hintbar .chip{font-size:10px}
+
+  section{padding:56px 0}
+  .sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:28px;flex-wrap:wrap}
+  h2{font-size:clamp(24px,3.6vw,34px);font-weight:800;letter-spacing:-.5px}
+  h2 small{display:block;font-size:13px;color:var(--brand2);font-weight:600;letter-spacing:2px;margin-bottom:6px}
+  .sec-head p{color:var(--sub);font-size:14px;max-width:420px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:var(--radius);padding:22px}
+  .card .ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:20px;margin-bottom:14px;background:rgba(91,140,255,.12);border:1px solid rgba(91,140,255,.3)}
+  .card h3{font-size:17px;margin-bottom:6px}
+  .card p{font-size:13.5px;color:var(--sub)}
+
+  .modes{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .mode{border-radius:var(--radius);padding:24px;border:1px solid var(--line);background:linear-gradient(180deg,var(--panel),var(--panel2))}
+  .mode .tag{font-size:12px;letter-spacing:1px;color:var(--brand2);margin-bottom:8px;font-weight:700}
+  .mode h3{font-size:20px;margin-bottom:10px}
+  .mode ul{list-style:none;font-size:13.5px;color:var(--sub)}
+  .mode ul li{padding:3px 0 3px 18px;position:relative}
+  .mode ul li::before{content:"✓";position:absolute;left:0;color:var(--brand2);font-weight:800}
+  .mode.off{border-style:dashed}
+  .mode.off .tag{color:var(--warm)}
+  .mode.off ul li::before{content:"·";color:var(--warm);font-size:16px}
+
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;counter-reset:s}
+  .step{padding:24px 22px;border-radius:var(--radius);background:var(--panel);border:1px solid var(--line)}
+  .step::before{counter-increment:s;content:"0" counter(s);font-size:28px;font-weight:900;background:linear-gradient(135deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .step h3{font-size:16px;margin:8px 0 6px}
+  .step p{font-size:13px;color:var(--sub)}
+
+  .story{display:grid;grid-template-columns:1fr;gap:14px}
+  .quote{border-left:3px solid var(--brand);background:rgba(91,140,255,.07);padding:18px 22px;border-radius:0 14px 14px 0;color:var(--sub);font-size:14px}
+  .links{display:flex;gap:12px;flex-wrap:wrap}
+  .linkcard{flex:1;min-width:220px;display:flex;align-items:center;gap:12px;padding:16px 18px;border-radius:14px;background:var(--panel);border:1px solid var(--line);transition:border-color .2s,transform .2s}
+  .linkcard:hover{border-color:rgba(91,140,255,.5);transform:translateY(-2px)}
+  .linkcard .lgi{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-size:18px;background:rgba(255,255,255,.06);border:1px solid var(--line)}
+  .linkcard b{display:block;color:var(--ink);font-size:14px}
+  .linkcard span{font-size:12px;color:var(--sub);word-break:break-all}
+
+  footer{border-top:1px solid var(--line);padding:26px 0 46px;color:var(--sub);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  footer b{color:var(--ink)}
+  footer a{color:var(--sub);border-bottom:1px dashed rgba(255,255,255,.2)}
+  footer a:hover{color:var(--ink)}
+
+  /* 上下滚动双向动画 */
+  .reveal{opacity:0;transform:translateY(26px) scale(.98);transition:opacity .55s ease,transform .55s ease}
+  .reveal.on{opacity:1;transform:none}
+  .reveal.d1{transition-delay:.06s}
+  .reveal.d2{transition-delay:.12s}
+  .reveal.d3{transition-delay:.18s}
+  .card.reveal{transform:translateY(26px) scale(.97)}
+  .card.reveal.on{transform:none}
+
+  @media (max-width:820px){
+    .hero{grid-template-columns:1fr;padding-top:40px}
+    .phone-col{transform:none !important}
+    .modes,.steps{grid-template-columns:1fr}
+    nav a:not(.icon){display:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div class="orb a" data-speed="0.18"></div>
+<div class="orb b" data-speed="0.1"></div>
+<div class="orb c" data-speed="0.24"></div>
+
+<header>
+  <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;width:100%">
+    <div class="logo"><span class="dot">智</span>小智</div>
+    <nav>
+      <a href="#features">功能</a>
+      <a href="#modes">模式</a>
+      <a href="#start">上手</a>
+      <a class="icon" href="https://github.com/hong12222/xiaozhi" target="_blank" rel="noopener">GitHub ↗</a>
+      <a class="icon" href="https://space.bilibili.com/3461562568280400" target="_blank" rel="noopener">B站 ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <div>
+      <span class="badge">v3.3.0 · 个人 AI 助手 · 本地自签分发</span>
+      <h1>手机里的<br><span class="g">私人 AI 助手</span></h1>
+      <p class="lead">
+        会聊、会看、会记事、会动手操作手机。<br>
+        说一句话就能设提醒、开应用、读屏幕、管理记忆；<br>
+        复杂的事拆成多步，替你一步步做完。断网也能用。
+      </p>
+      <div class="cta">
+        <a class="btn primary" href="#try">试用一下 →</a>
+        <a class="btn ghost" href="#features">看看能做什么</a>
+        <a class="btn git" href="https://github.com/hong12222/xiaozhi" target="_blank" rel="noopener">⭐ GitHub 开源</a>
+      </div>
+      <div class="meta">
+        <span>适配 <b>Android 8.0+</b></span>
+        <span>体积 <b>约 260 KB</b></span>
+        <span>无广告 · <b>无第三方 SDK</b></span>
+      </div>
+    </div>
+
+    <div class="phone-col" id="phoneCol">
+      <div class="phone" id="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="chat" id="chat"></div>
+          <div class="hintbar" id="hints"></div>
+          <div class="inputbar">
+            <input id="cmd" placeholder="输入指令，如：明天9点提醒我交周报" autocomplete="off">
+            <button id="send" title="发送">➤</button>
+          </div>
+          <div class="dock">
+            <span>对话</span><span>发现</span><span>记事</span><span>我的</span>
+            <div class="ball" title="悬浮球" onclick="quickDemo()">🪄</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="try">
+    <div class="sec-head reveal">
+      <div>
+        <small>TRY IT</small>
+        <h2>随便说句指令试试</h2>
+      </div>
+      <p>点下方气泡里的建议，或者直接在输入框打一句话，模拟小智的回答。</p>
+    </div>
+    <div class="grid" id="tryGrid">
+      <div class="card reveal d1"><div class="ic">⏰</div><h3>设提醒</h3><p>说「明天 9 点提醒我交周报」，试试自然语言解析。</p><div class="q" style="margin-top:10px"><span class="chip" onclick="say('明天9点提醒我交周报')">试一句 ↗</span></div></div>
+      <div class="card reveal d2"><div class="ic">👀</div><h3>识屏</h3><p>说「读一下这屏聊天记录」，看它分析情绪与好感度。</p><div class="q" style="margin-top:10px"><span class="chip" onclick="say('读一下这屏聊天记录')">试一句 ↗</span></div></div>
+      <div class="card reveal d3"><div class="ic">🧠</div><h3>记住</h3><p>说「记住我下周要交房租」，写进记忆库。</p><div class="q" style="margin-top:10px"><span class="chip" onclick="say('记住我下周要交房租')">试一句 ↗</span></div></div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="sec-head reveal">
+      <div>
+        <small>FEATURES</small>
+        <h2>六件顺手小事，它都会</h2>
+      </div>
+      <p>聊天、识屏、记忆、待办、发现、操控手机——收进一个 App。</p>
+    </div>
+    <div class="grid">
+      <div class="card reveal"><div class="ic">🗣</div><h3>双模对话</h3><p>本地规则离线可用，配置 API 后升级联网 AI，长按说话松开识别，全自动切换。</p></div>
+      <div class="card reveal d1"><div class="ic">👀</div><h3>识屏</h3><p>读聊天、读题目、读菜单、比价、翻译；v3.0 还能分析对方情绪与好感度。</p></div>
+      <div class="card reveal d2"><div class="ic">🖐</div><h3>手机操控</h3><p>开应用、129 款应用内搜索跳转、16 项系统设置直达，微信扫码/付款码一键跳转。</p></div>
+      <div class="card reveal"><div class="ic">📝</div><h3>自然语言记事</h3><p>「记住我下周交房租」「明天 9 点提醒我交周报」直接生效，支持每天/每周重复。</p></div>
+      <div class="card reveal d1"><div class="ic">🎈</div><h3>悬浮球</h3><p>不离开当前应用就能对话、翻译、识屏、全屏记忆；三种手势、4 种窗型。</p></div>
+      <div class="card reveal d2"><div class="ic">🔒</div><h3>数据本地</h3><p>记忆、待办、截图都存在手机里。只有你主动发起的联网请求才走你自己的 API。</p></div>
+    </div>
+  </section>
+
+  <section id="modes">
+    <div class="sec-head reveal">
+      <div>
+        <small>MODES</small>
+        <h2>两种模式，自动切换</h2>
+      </div>
+      <p>没网不尴尬，有网更聪明。</p>
+    </div>
+    <div class="modes">
+      <div class="mode off reveal">
+        <div class="tag">离线 · 默认</div>
+        <h3>本地模式</h3>
+        <ul>
+          <li>待办 / 提醒 / 闹钟</li>
+          <li>打开应用、跳系统设置</li>
+          <li>截屏、识屏、返回 / 桌面</li>
+          <li>无需任何配置</li>
+        </ul>
+      </div>
+      <div class="mode reveal d1">
+        <div class="tag">在线 · 配置后启用</div>
+        <h3>联网 AI 模式</h3>
+        <ul>
+          <li>完整对话与多步任务拆解</li>
+          <li>AI 识图 / 识屏 / 翻译 / 起标题</li>
+          <li>发现页智能洞察分析</li>
+          <li>OpenAI 兼容 API，自己填地址与模型</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="start">
+    <div class="sec-head reveal">
+      <div>
+        <small>QUICK START</small>
+        <h2>三步用起来</h2>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step reveal"><h3>装 APK</h3><p>直接安装。<br>自签名包与线上版互斥，装前先卸载旧版。</p></div>
+      <div class="step reveal d1"><h3>开权限</h3><p>悬浮窗 + 无障碍「小智 · 手机操控」+ 录屏 + 麦克风。<br>识屏、操控手机都需要它们。</p></div>
+      <div class="step reveal d2"><h3>配 AI（可选）</h3><p>我的 → 设置 → AI 服务，<br>填 OpenAI 兼容地址与模型；<br>不配也能用本地模式。</p></div>
+    </div>
+  </section>
+
+  <section id="more">
+    <div class="sec-head reveal">
+      <div>
+        <small>STORY</small>
+        <h2>在手机上「边用边造」</h2>
+      </div>
+    </div>
+    <div class="story">
+      <div class="quote reveal">
+        小智由开发者 <b>i泓</b> 在手机上逐步打磨而成：从 v1.0.0 到 v3.0.0 共 20 个版本，
+        全部由本机 smali 重打包、本地签名发布。没有 IDE，没有商店，只有一台手机和持续改下去的手感。
+      </div>
+      <div class="links reveal d1">
+        <a class="linkcard" href="https://github.com/hong12222/xiaozhi" target="_blank" rel="noopener">
+          <div class="lgi">🐙</div>
+          <div><b>GitHub 仓库</b><span>github.com/hong12222/xiaozhi</span></div>
+        </a>
+        <a class="linkcard" href="https://space.bilibili.com/3461562568280400" target="_blank" rel="noopener">
+          <div class="lgi">📺</div>
+          <div><b>B 站 · 开发者 i泓</b><span>space.bilibili.com/3461562568280400</span></div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="wrap">
+    <div><b>小智</b> · com.xiaozhi.assistant · 个人项目 · 源码在 <a href="https://github.com/hong12222/xiaozhi" target="_blank" rel="noopener">GitHub</a> · 作者在 <a href="https://space.bilibili.com/3461562568280400" target="_blank" rel="noopener">B 站</a></div>
+    <div>当前构建 v3.3.0 · 本页为介绍演示，非官方页面</div>
+  </footer>
+
+</main>
+
+<script>
+/* ==================== 模拟对话引擎 ==================== */
+const chat = document.getElementById('chat');
+const hints = document.getElementById('hints');
+const input = document.getElementById('cmd');
+
+const APPS = ['微信','抖音','哔哩哔哩','B站','小红书','微博','淘宝','京东','美团','支付宝','网易云','QQ','王者荣耀','高德地图','钉钉'];
+const SUGGESTIONS = [
+  '明天9点提醒我交周报',
+  '记住我下周要交房租',
+  '读一下这屏聊天记录',
+  '在淘宝搜一下无线耳机',
+  '打开微信',
+  '帮我把屏幕调亮一点',
+  '截个屏',
+  '翻译一下这段英文',
+  '这题怎么做？',
+  '返回桌面'
+];
+const FALLBACKS = ['这句话我还没学会 🤔 换个说法试试？','嗯…我没太听懂，可以点下面的建议，或者把指令说得更具体一点。','收到，不过本地模式下这句话超出范围。配好 API 我就能自由对话了。'];
+
+function scrollBottom(){ chat.scrollTop = chat.scrollHeight; }
+function esc(s){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function addMsg(who, text, chips){
+  const d = document.createElement('div');
+  d.className = 'msg ' + who;
+  d.innerHTML = text;
+  if(chips && chips.length){
+    const q = document.createElement('div');
+    q.className = 'q';
+    chips.forEach(t => {
+      const s = document.createElement('span');
+      s.className = 'chip'; s.textContent = t;
+      s.onclick = () => say(t);
+      q.appendChild(s);
+    });
+    d.appendChild(q);
+  }
+  chat.appendChild(d);
+  scrollBottom();
+  return d;
+}
+
+function botReply(text){
+  const t = addMsg('ai','<span class="typing"><i></i><i></i><i></i></span>');
+  const wait = 500 + Math.random()*500;
+  setTimeout(() => { t.innerHTML = text; scrollBottom(); }, wait);
+  return t;
+}
+
+function say(text){
+  text = (text||'').trim();
+  if(!text) return;
+  addMsg('me', esc(text));
+  input.value = '';
+  setTimeout(() => reply(text), 380);
+}
+
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+function reply(t){
+  const s = t.replace(/\s+/g,'');
+  let out, chips;
+
+  // 打招呼 / 帮助
+  if(/^(你好|您好|hi|hello|嗨|在吗|帮助|help)[!！。~？?]*$/i.test(s)){
+    out = '你好，我是小智 🪄<span class="sub">· 试试：设提醒、识屏、记忆、开应用</span>';
+    chips = ['明天9点提醒我交周报','读一下这屏聊天记录','记住我下周要交房租'];
+  }
+  // 提醒 / 待办
+  else if(/(提醒|待办|记得|备忘|闹钟)/.test(s)){
+    const m = s.match(/(明天|后天|今天|今晚|明早|下周一|下周三|周五|周六|周日|周[一二三四五六日天]|早上|上午|下午|晚上)?\s*(\d{1,2})\s*[点:：]\s*(半|\d{1,2})?/);
+    let when = '明天 09:00';
+    if(m){
+      const day = m[1] ? (m[1]==='今天'||m[1]==='今晚'?'今天':'明天') : '明天';
+      const hh = String(m[2]).padStart(2,'0');
+      const mm = m[3]==='半'?'30':String(m[3]||'00').padStart(2,'0');
+      when = day+' '+hh+':'+mm;
+    }
+    out = '好的，已记下 ⏰<br>「'+esc(t)+'」<br><span class="sub">· '+when+' 提醒你 · 可以改成每天/每周重复</span>';
+    chips = ['改成每天提醒','导入系统日程','再设一个明天下午3点'];
+  }
+  // 记住
+  else if(/(记住|记一下|记下来|备忘)/.test(s)){
+    const content = s.replace(/^.*?(记住|记一下|记下来|记录一下|备忘)[:：,，]?/,'') || t;
+    out = '已存入记忆 🧠<br>「'+esc(content)+'」<span class="sub">· 之后可以直接说「我记过什么」来查</span>';
+    chips = ['我记过什么','删除这条记忆','提醒我周末看房'];
+  }
+  // 查记忆
+  else if(/(记过|查记忆|我的记忆)/.test(s)){
+    out = '你目前有 3 条记忆 🧠<span class="sub">· 下周要交房租<br>· 周三下午看房<br>· 喜欢喝美式</span>';
+    chips = ['删除这条记忆','记住我每天8点起床'];
+  }
+  // 识屏
+  else if(/(识屏|读屏|读一下|看看这屏|识别屏幕|屏幕上)/.test(s)){
+    out = '识屏中…（模拟）<br>「对方说：周末有空出来吃饭吗？」<br><span class="sub">· 情绪：期待 · 好感度偏高 😊 · 已读 1 条消息</span><br>想让我帮你想一句回复吗？';
+    chips = ['帮我想个回复','分析好感度','翻译这段英文'];
+  }
+  // 情绪分析
+  else if(/(情感|情绪|好感|喜欢我)/.test(s)){
+    out = '分析结果（模拟）<br>😊 情绪：期待 / 开心<br>💗 好感度：偏高（约 78%）<br><span class="sub">· 对方连续回复两条，用了语气词</span>';
+    chips = ['帮我想个回复','读一下这屏聊天记录'];
+  }
+  // 回复 / 聊天话术
+  else if(/(回复|怎么回|说点什么|再给我一句|再来一句)/.test(s)){
+    out = '可以这样回（模拟）：<br>「好呀，周末有空！想吃什么你定～」<span class="sub">· 已适配对方的语气与好感度</span>';
+    chips = ['再给我一句','分析好感度'];
+  }
+  // 打开应用
+  else if(/(打开|启动|运行)/.test(s)){
+    const app = APPS.find(a => s.includes(a)) || (/蓝牙|WiFi|wifi|设置/.test(s) ? '设置' : '应用');
+    out = '正在打开「'+app+'」🚀<span class="sub">· 若未安装会先询问你</span>';
+    chips = [app === '设置' ? '打开Wi-Fi设置' : '在'+app+'里搜一下周报', '返回桌面'];
+  }
+  // 应用内搜索
+  else if(/(搜索|搜一下|搜搜|查一下|找一下)/.test(s)){
+    const app = APPS.find(a => s.includes(a)) || '浏览器';
+    out = '好的，正在「'+app+'」里搜索 🔍<span class="sub">· 支持 129 款应用内搜索跳转</span>';
+    chips = ['打开'+app,'返回桌面'];
+  }
+  // 翻译
+  else if(/(翻译|translate)/.test(s)){
+    out = '正在翻译（模拟）<br>原文：The early bird catches the worm.<br>译文：早起的鸟儿有虫吃。<span class="sub">· 目标语言可在设置里切换</span>';
+    chips = ['翻译成英文','复制译文'];
+  }
+  // 截屏
+  else if(/(截屏|截图|截个屏)/.test(s)){
+    out = '已截屏 📸<span class="sub">· 保存在相册「小智」目录 · 也可以让我直接读图</span>';
+    chips = ['读一下这张截图','全屏记忆'];
+  }
+  // 解题
+  else if(/(题|怎么做|解法|计算|求值)/.test(s)){
+    out = '这题我看看（模拟）<br>📐 已知：x + 2 = 7，求 x<br>解：x = 7 − 2 = 5<span class="sub">· 联网 AI 模式可直接拍照解题</span>';
+    chips = ['再出一道题','翻译这段英文'];
+  }
+  // 系统设置
+  else if(/(亮度|调亮|调暗|音量|声音|WiFi|wifi|蓝牙|设置|深色|主题)/.test(s)){
+    out = '已直达系统设置（模拟）🛠<span class="sub">· 支持 16 项系统设置一键跳转</span>';
+    chips = ['调大音量','打开蓝牙','返回桌面'];
+  }
+  // 返回 / 桌面
+  else if(/(返回|后退|桌面|主页)/.test(s)){
+    out = '好的，已回到桌面 🏠<span class="sub">· 悬浮球会继续在侧边待命</span>';
+    chips = ['打开微信','说个冷笑话'];
+  }
+  // 说个笑话
+  else if(/(笑话|冷知识)/.test(s)){
+    out = '为什么程序员喜欢黑暗？<br>因为光会吸引 bug 🐛（模拟彩蛋）';
+    chips = ['你好','截个屏'];
+  }
+  // 微信扫码/付款
+  else if(/(扫码|付款码|收款)/.test(s)){
+    out = '已帮你跳到微信「扫一扫」📷<span class="sub">· 付款码 / 扫码支持一键跳转</span>';
+    chips = ['打开微信','截个屏'];
+  }
+  // 删除记忆 / 待办
+  else if(/(删除|删掉|清空).*(记忆|待办|提醒)/.test(s)){
+    out = '已删除这条记录 ✅<span class="sub">· 也可以直接对我说「删掉这条记忆」</span>';
+    chips = ['我记过什么','明天9点提醒我交周报'];
+  }
+  // 兜底
+  else {
+    out = pick(FALLBACKS);
+    chips = ['明天9点提醒我交周报','读一下这屏聊天记录','打开微信','记住我下周要交房租'];
+  }
+
+  const msg = botReply(out);
+  setTimeout(() => {
+    if(chips && chips.length) attachChips(msg, chips.slice(0, 3));
+    renderHints();
+  }, 1050);
+}
+
+function attachChips(msg, chips){
+  const q = document.createElement('div');
+  q.className = 'q';
+  const uniq = [...new Set(chips)];
+  uniq.forEach(t => {
+    const s = document.createElement('span');
+    s.className = 'chip'; s.textContent = t;
+    s.onclick = () => say(t);
+    q.appendChild(s);
+  });
+  msg.appendChild(q);
+  scrollBottom();
+}
+
+function renderHints(){
+  hints.innerHTML = '';
+  const pool = SUGGESTIONS.slice().sort(() => Math.random()-.5).slice(0,3);
+  pool.forEach(t => {
+    const s = document.createElement('span');
+    s.className = 'chip'; s.textContent = t;
+    s.onclick = () => say(t);
+    hints.appendChild(s);
+  });
+}
+
+document.getElementById('send').onclick = () => say(input.value);
+input.addEventListener('keydown', e => { if(e.key === 'Enter') say(input.value); });
+
+/* 悬浮球点击：随机指令 */
+function quickDemo(){
+  say(pick(SUGGESTIONS));
+}
+function demo(){ quickDemo(); }
+
+/* ==================== 滚动动画（上下双向） ==================== */
+const hasIO = 'IntersectionObserver' in window;
+const io = hasIO ? new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if(e.isIntersecting) e.target.classList.add('on');
+    else e.target.classList.remove('on');
+  });
+}, {threshold:[0, .12, .3]}) : null;
+
+function observeAll(){
+  document.querySelectorAll('.reveal').forEach(el => {
+    if(io) io.observe(el);
+    else el.classList.add('on');
+  });
+}
+
+/* 顶部进度条 + 光斑视差 + 手机上下浮动 */
+const progress = document.getElementById('progress');
+const phoneCol = document.getElementById('phoneCol');
+const orbs = [...document.querySelectorAll('.orb')];
+let rafPending = false;
+function onScroll(){
+  if(!rafPending){
+    rafPending = true;
+    requestAnimationFrame(() => {
+      rafPending = false;
+      const max = document.documentElement.scrollHeight - innerHeight;
+      progress.style.width = (max > 0 ? (scrollY/max*100) : 0) + '%';
+
+      const y = window.scrollY;
+      orbs.forEach(o => {
+        o.style.transform = 'translateY(' + (-y*(+o.dataset.speed||0.1)) + 'px)';
+      });
+      if(phoneCol && innerWidth > 820){
+        // 手机随滚动轻微移动 + 悬停动画
+        const rect = phoneCol.getBoundingClientRect();
+        const rel = (rect.top + rect.height/2 - innerHeight/2) / innerHeight;
+        phoneCol.style.transform = 'translateY(' + (rel*30) + 'px)';
+      }
+    });
+  }
+}
+window.addEventListener('scroll', onScroll, {passive:true});
+window.addEventListener('resize', onScroll);
+onScroll();
+
+/* 首条欢迎消息 */
+setTimeout(() => {
+  addMsg('ai', '你好，我是小智 🪄<br>说句话就行：设提醒、开应用、读屏幕、记事情都可以。<span class="sub">· 我是页面里的模拟助手，随便试</span>',
+    ['明天9点提醒我交周报','读一下这屏聊天记录','打开微信']);
+  renderHints();
+  observeAll();
+  scrollBottom();
+}, 500);
+</script>
+</body>
+</html>
